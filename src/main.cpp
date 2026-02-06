@@ -5,11 +5,7 @@
 void setup(void)
 {
 
-    pinMode(BUZZER, OUTPUT); // buzzer pin for debugging
 
-    // SR04 ultrasonic sensor:
-    pinMode(ECHO_PIN, INPUT);  // what receives the soundwaves for parsing
-    pinMode(TRIG_PIN, OUTPUT); // what sends out the soundwave
 
     // motor stuff:
     esc.attach(MOTOR1_PWM_PIN);
@@ -19,9 +15,9 @@ void setup(void)
 
     // start serial monitor
     Serial.begin(SERIAL_MONITOR_BAUD);
+    esp32_SERIAL.begin(ESP32_BAUD);
 
     Wire.begin();
-
 
     ina.config_setup(); // ina260.begin(); //
     setParts();
@@ -53,7 +49,6 @@ void loop(void)
         if (baro.getTempPress(&temp, &pres))
         {
             Serial.printf("baro read failed\n");
-
         }
     }
 
@@ -85,7 +80,6 @@ void loop(void)
 
     batt_volt = ina.get_volt() / 1000.0; // ina260.readBusVoltage()/1000.0; // ;//   //
 
-    SR04_dist_cm = SR04_MICROSECONDS_TO_CENTIMETERS * SR04_Distance();
 
     // joystick controls:
     if (radio_SERIAL.find('X'))
@@ -93,13 +87,13 @@ void loop(void)
         radio_read = radio_SERIAL.readStringUntil('\n');
         Serial.print("joystick X: ");
         Serial.println(radio_read.c_str());
- 
+
         if (radio_read != radio_read_old)
         {
 
             /*
-            
-         PUT YOUR flight CODE HERE   
+
+         PUT YOUR flight CODE HERE
             */
         }
     }
@@ -113,8 +107,8 @@ void loop(void)
         if (radio_read2 != radio_read_old2)
         {
             /*
-            
-         PUT YOUR flight CODE HERE   
+
+         PUT YOUR flight CODE HERE
             */
         }
     }
@@ -123,22 +117,21 @@ void loop(void)
 
         radio_read3 = radio_SERIAL.readStringUntil('\n');
         Serial.print("joystick T:");
-        Serial.println(radio_read3.c_str()); 
+        Serial.println(radio_read3.c_str());
         DUTY_CYCLE_FRACT_T = mapfloat(radio_read3.toFloat(), -1.0, 1.0, 0.0, 1.0);
 
-         rotateMotor(1, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
-            rotateMotor(2, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
-            
-            rotateMotor(3, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
-            rotateMotor(4, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
+        rotateMotor(1, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
+        rotateMotor(2, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
+
+        rotateMotor(3, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
+        rotateMotor(4, MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_T);
         if (radio_read3.toFloat() <= radio_read_old3.toFloat() + thrust_threshold && radio_read3.toFloat() >= radio_read_old3.toFloat() - thrust_threshold)
         {
 
             /*
-            
-         PUT YOUR flight CODE HERE   
+
+         PUT YOUR flight CODE HERE
             */
-       
         }
     }
 
@@ -146,12 +139,15 @@ void loop(void)
 
     // rotateMotor(MOTOR1_PWM_PERIOD, DUTY_CYCLE_FRACT_Y);
 
-    // print stuff to serial 
+    // print stuff to serial
     sprintf(
         string, outputFormat,
-        timestamp / 1000, imu_acc.XAxis, imu_acc.YAxis, imu_acc.ZAxis, accel_resultant, imu_gyro.XAxis, imu_gyro.YAxis, imu_gyro.ZAxis, temp, pres, alt, (alt - alt_start), batt_volt, lat, lon, gps_quality, gps_alt, angleX_old, angleY_old, angleZ_old, angleX_diff, angleY_diff, angleZ_diff, SR04_dist_cm, 100 * DUTY_CYCLE_FRACT_T);
+        timestamp / 1000, imu_acc.XAxis, imu_acc.YAxis, imu_acc.ZAxis, accel_resultant, imu_gyro.XAxis, imu_gyro.YAxis, imu_gyro.ZAxis, temp, pres, alt, (alt - alt_start), batt_volt, lat, lon, gps_quality, gps_alt, angleX_old, angleY_old, angleZ_old, angleX_diff, angleY_diff, angleZ_diff, 100 * DUTY_CYCLE_FRACT_T);
 
- Serial.printf("%s", string);
+    Serial.printf("%s", string);
     radio_SERIAL.printf("%s", string);
 
+    // send data to esp32 to log data:
+
+    esp32_SERIAL.print(string);
 }

@@ -18,11 +18,11 @@
 
 #define radio_BAUD 9600 // 230400
 #define GPS_BAUD 9600
+#define ESP32_BAUD 57600
 #define radio_SERIAL Serial2
-//#define esp32_SERIAL Serial5
+#define esp32_SERIAL Serial4
 #define GPS_SERIAL Serial5
 #define BARO_WIRE Wire
-#define BUZZER PIN_A12
 #define AD0_VAL 0
 #define SERIAL_MONITOR_BAUD 115200
 #define PI 3.14159265358979323846
@@ -33,16 +33,10 @@
 #define gravitational_const 9.81     // m/s^2
 #define temp_lapse_rate 0.0065       // k/m
 #define molecular_weight_air 28.9644 // kg/kmol
-#define TRIG_PIN PIN_A1
-#define ECHO_PIN PIN_A0
-#define PULSE_TIMEOUT 150000L   // ultrasonic sensor pulse timeout in 100ms // PULSE_TIMEOUT- can be a range of 10us - 3minutes and determines how long it waits to read the pulse
-#define SR04_THRESHOLD_UPPER 18 // ultrasonic distance sensor threshold [cm]
-#define SR04_THRESHOLD_LOWER 5
-#define SR04_MICROSECONDS_TO_CENTIMETERS (100.0 / 5882.0) // ultrasonic sensor conversion from ms to centimeters
 #define MOTOR1_PWM_PIN PIN_A8
 #define MOTOR2_PWM_PIN PIN_A9
-#define MOTOR3_PWM_PIN PIN_A13
-#define MOTOR4_PWM_PIN PIN_A10
+#define MOTOR3_PWM_PIN 12
+#define MOTOR4_PWM_PIN 11
 
 #define thrust_threshold 0.1
 #define MOTOR1_PWM_PERIOD 20000 // microseconds
@@ -62,7 +56,6 @@ battery  voltage ==>  %lf V
 GPS==> location:    %lf, %lf,  quality: %d,  alttitude: %lf m
 initial board angles (deg) ==> X: %lf , Y: %lf  , Z: %lf 
 tilt changes (deg)==>  X: %lf , Y: %lf  , Z: %lf 
-distance from an object: %lf cm 
 throttle (%%): %lf
 
 
@@ -88,7 +81,6 @@ float batt_volt;
 
 int counter, gps_quality;
 float gps_alt, DUTY_CYCLE_FRACT_T;
-double SR04_dist_cm, duration;
 float pos = 0.0;        // postion int for servo test
 bool servoState = true; // bool used for state of servo direction ; 0 = CW , 1= CCW
 
@@ -146,21 +138,6 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-// ultrasonic sensor function:
-long SR04_Distance()
-{
-    duration = 0;
-    digitalWrite(TRIG_PIN, LOW);
-    delayMicroseconds(2);
-    digitalWrite(TRIG_PIN, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIG_PIN, LOW);
-    delayMicroseconds(2);
-    duration = pulseIn(ECHO_PIN, HIGH, PULSE_TIMEOUT); // receives a pulse: waits for falling edge then starts a clock timer and returns 0 if no pulse was received
-    // PULSE_TIMEOUT- can be a range of 10us - 3minutes and determines how long it waits to read the pulse
-    delay(25);
-    return duration;
-}
 
 // motor code:
 
