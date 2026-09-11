@@ -24,8 +24,6 @@ void setup(void)
 
     //  mlx.pwmctrl();
 
-    Serial.printf("launching\n");
-    radio_SERIAL.printf("launching\n");
 }
 
 // =====================================================================================
@@ -34,7 +32,6 @@ void setup(void)
 void loop(void)
 {
 
-    Serial.println("inside loop");
     uint32_t timestamp = millis();
 
     radio_read_old = radio_read;
@@ -56,13 +53,22 @@ void loop(void)
 
     mpu.get_acc(1, &imu_acc);
     mpu.get_gyro(1, &imu_gyro);
-    accel_resultant = sqrt(pow(imu_acc.XAxis, 2) + pow(imu_acc.YAxis, 2) + pow(imu_acc.ZAxis, 2));
-    angleX = rad_to_deg(atan(imu_acc.ZAxis / imu_acc.XAxis));
-    angleY = rad_to_deg(atan(imu_acc.ZAxis / imu_acc.YAxis));
-    angleZ = rad_to_deg(atan(imu_acc.YAxis / imu_acc.ZAxis));
-    angleX_diff = angleX - angleX_old;
-    angleY_diff = angleY - angleY_old;
-    angleZ_diff = angleZ - angleZ_old;
+    accelx = imu_acc.XAxis; //- accel_bias.XAxis; 
+    accely = imu_acc.YAxis;// - accel_bias.YAxis; 
+    accelz = imu_acc.ZAxis ;//- accel_bias.ZAxis; 
+    
+    gyrox = imu_gyro.XAxis ;//- gyro_bias.XAxis; 
+    gyroy = imu_gyro.YAxis ;//- gyro_bias.YAxis; 
+    gyroz = imu_gyro.ZAxis ;//- gyro_bias.ZAxis; 
+
+
+    accel_resultant = sqrt(pow(accelx, 2) + pow(accely, 2) + pow(accelz, 2));
+    angleX = rad_to_deg(atan(accelz/ accelx));
+    angleY = rad_to_deg(atan(accelz/ accely));
+    angleZ = rad_to_deg(atan(accely/ accelz));
+    angleX_diff = angleX - angleX_start;
+    angleY_diff = angleY - angleY_start;
+    angleZ_diff = angleZ - angleZ_start;
 
     gps.read_RMC(&lon, &lat);
     gps.read_GGA(&gps_quality, &gps_alt);
@@ -142,12 +148,28 @@ void loop(void)
     // print stuff to serial
     sprintf(
         string, outputFormat,
-        timestamp / 1000, imu_acc.XAxis, imu_acc.YAxis, imu_acc.ZAxis, accel_resultant, imu_gyro.XAxis, imu_gyro.YAxis, imu_gyro.ZAxis, temp, pres, alt, (alt - alt_start), batt_volt, lat, lon, gps_quality, gps_alt, angleX_old, angleY_old, angleZ_old, angleX_diff, angleY_diff, angleZ_diff, 100 * DUTY_CYCLE_FRACT_T);
+        timestamp / 1000, temp, pres, alt, (alt - alt_start), lat, lon, gps_quality, gps_alt);
 
     Serial.printf("%s", string);
     radio_SERIAL.printf("%s", string);
 
-    // send data to esp32 to log data:
 
-    esp32_SERIAL.print(string);
+    if (partsStates.sdcard)
+    {
+        File dataFile = SD.open(logFileName.c_str(), FILE_WRITE);
+
+        if (dataFile)
+        {
+            dataFile.println(string);
+            dataFile.close();
+        }
+        else
+        {
+            Serial.printf("error opening %s\n", logFileName.c_str());
+            partsStates.sdcard = false;
+        }
+    }
+
+
+
 }

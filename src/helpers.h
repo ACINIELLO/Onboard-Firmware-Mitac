@@ -11,6 +11,7 @@
 #include <Servo.h>
 // #include <MLX90614.h>
 #include <ina260.h> //#include <Adafruit_INA260.h>/
+#include <SD.h>
 
 // =====================================================================================
 //                                    constants:
@@ -42,22 +43,18 @@
 #define MOTOR1_PWM_PERIOD 20000 // microseconds
 // Constants
 String radio_read, radio_read2, radio_read_old, radio_read_old2, radio_read3, radio_read_old3;
+String logFileName = "droneLog.txt";
 
 const double alt_dt_toronto = 75.0; // in meters
 const int minPulse = 1000;          // Minimum pulse width for ESC (microseconds) - usually corresponds to stopped motor
 const int maxPulse = 2020;          // Maximum pulse width for ESC (microseconds) - usually corresponds to full throttle
+
 const char outputFormat[] =
     R"""(
 timestamp:   %lu
-accel(g) ==> X = %lf , Y = %lf , Z = %lf , ||a|| = %lf 
-gyro(deg/s) ==> X = %lf , Y = %lf , Z = %lf  
-atmospheric ==> T = %lf degK , P = %lf kPa, alt from SL  = %lf m , alt from start = %lf m
-battery  voltage ==>  %lf V
-GPS==> location:    %lf, %lf,  quality: %d,  alttitude: %lf m
-initial board angles (deg) ==> X: %lf , Y: %lf  , Z: %lf 
-tilt changes (deg)==>  X: %lf , Y: %lf  , Z: %lf 
-throttle (%%): %lf
 
+atmospheric ==> T = %lf degK , P = %lf kPa, alt from SL  = %lf m , alt from start = %lf m
+GPS==> location:    %lf, %lf,  quality: %d,  alttitude: %lf m
 
 
 )""";
@@ -74,7 +71,8 @@ double temp, pres, lon, lat, alt;
 double temp_start, pres_start, alt_start;
 
 // float batt_temp;
-double angleX, angleY, angleZ, angleX_old, angleY_old, angleZ_old, angleX_diff, angleY_diff, angleZ_diff, accel_resultant;
+double angleX, angleY, angleZ, angleX_start, angleY_start, angleZ_start, angleX_diff, angleY_diff, angleZ_diff, accel_resultant;
+double accelx, accely, accelz, gyrox, gyroy, gyroz;
 char string[1600] = {0};
 
 float batt_volt;
@@ -91,11 +89,10 @@ Ms5611 baro;
 GPS gps;
 
 MPU mpu;
-AStruct imu_acc;
-GStruct imu_gyro;
+AStruct imu_acc, accel_bias;
+AStruct imu_gyro, gyro_bias;
 
-
-Servo esc, esc2,esc3,esc4; // create servo object to control a servo
+Servo esc, esc2, esc3, esc4; // create servo object to control a servo
 
 // Adafruit_INA260 ina260 = Adafruit_INA260();
 INA260 ina;
@@ -107,6 +104,8 @@ struct
     bool gps = false;
     bool radio = false;
     bool imu = false;
+    bool sdcard = false;
+
     // bool ina = false;
 } partsStates;
 
@@ -124,8 +123,6 @@ void rotateMotor(int i, int delayTime, float dutycycle_fraction);
 //                                    Functions:
 // =====================================================================================
 
-
-
 // Function to convert radians to degrees
 double rad_to_deg(double rad)
 {
@@ -137,7 +134,6 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-
 
 // motor code:
 
@@ -171,17 +167,19 @@ void setParts(void)
 
     if (!partsStates.imu)
     {
-        mpu.init(1,1); 
+        mpu.init(1, 1, 2000,&imu_acc,&imu_gyro, &accel_bias, &gyro_bias);
 
         mpu.get_acc(1, &imu_acc);
+        accelx = imu_acc.XAxis;// - accel_bias.XAxis;
+        accely = imu_acc.YAxis;// - accel_bias.YAxis;
+        accelz = imu_acc.ZAxis;// - accel_bias.ZAxis;
 
-        angleX = rad_to_deg(atan(imu_acc.ZAxis / imu_acc.XAxis));
-        angleY = rad_to_deg(atan(imu_acc.ZAxis / imu_acc.YAxis));
-        angleZ = rad_to_deg(atan(imu_acc.YAxis / imu_acc.ZAxis));
-
-        angleX_old = angleX;
-        angleY_old = angleY;
-        angleZ_old = angleZ;
+        angleX = rad_to_deg(atan(accelz / accelx));
+        angleY = rad_to_deg(atan(accelz / accely));
+        angleZ = rad_to_deg(atan(accely / accelz));
+        angleX_start = angleX;
+        angleY_start = angleY;
+        angleZ_start = angleZ;
 
         partsStates.imu = true;
         Serial.println("IMU init OK");
@@ -196,7 +194,7 @@ void setParts(void)
 
             partsStates.baro = false;
             Serial.println("MS5611 init error");
-           // buzzFor(500, 50);
+            // buzzFor(500, 50);
         }
         else
         {
@@ -230,7 +228,21 @@ void setParts(void)
         partsStates.radio = true;
         Serial.println("radio init OK");
     }
-
+    // init SD card
+    if (!partsStates.sdcard)
+    {
+        if (!SD.begin(BUILTIN_SDCARD))
+        {
+            partsStates.sdcard = false;
+            Serial.println("SD Card init error");
+           // buzzFor(500, 50);
+        }
+        else
+        {
+            partsStates.sdcard = true;
+            Serial.println("SD Card init OK");
+        }
+    }
 }
 
 #endif

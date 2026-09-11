@@ -1,19 +1,19 @@
 #ifndef __MPU9250_H__
 #include <Wire.h>
-#include<Arduino.h>
+#include <Arduino.h>
 #include <stdint.h>
 
 #define __MPU9250_H__
 
 #define ADDR 0x68
 #define WIRE Wire
-#define  magnet_calib  0.6 // uT/LSB
+#define magnet_calib 0.6 // uT/LSB
 
-//IMU Configurations registers
+// IMU Configurations registers
 #define GYRO_CONFIG 0x1B
 #define ACC_CONFIG 0x1C
 
-//IMU Data measurements registers 
+// IMU Data measurements registers
 
 #define ACCEL_XOUT_H 0X3B
 #define ACCEL_XOUT_L 0X3C
@@ -21,7 +21,6 @@
 #define ACCEL_YOUT_L 0X3E
 #define ACCEL_ZOUT_H 0X3F
 #define ACCEL_ZOUT_L 0X40
-
 
 #define GYRO_XOUT_H 0X43
 #define GYRO_XOUT_L 0X44
@@ -37,42 +36,31 @@
 #define MAGNET_ZOUT_H 0X8
 #define MAGNET_ZOUT_L 0X7
 
+// Data Structs
 
-
-//Data Structs
-
-struct AStruct//acceleration
+struct AStruct // acceleration
 {
-    float XAxis,YAxis,ZAxis;
-};
-
-struct GStruct//gyroscope
-{
-    float XAxis,YAxis,ZAxis;
-};
-
-struct MStruct//magnometer
-{
-    float XAxis,YAxis,ZAxis;
+    float XAxis, YAxis, ZAxis;
 };
 
 
-class MPU{
+class MPU
+{
 public:
-    //range variables 
-    float GyroRange[4]={131.0,65.5,32.8,16.4};
-    float AccelRange[4]={16384.0,8192.0,4096.0,2048.0};
+    // range variables
+    float AccelRange[4] = {16384.0, 8192.0, 4096.0, 2048.0};
+    float GyroRange[4] = {131.0, 65.5, 32.8, 16.4};
 
-    //config functions
-    void gyro_setup(int range);
-    void acc_setup(int range);
+    // config functions
+    void acc_setup(int range, int sample_size, struct AStruct *accel,struct AStruct *accel_bias);
+    void gyro_setup(int range,int sample_size, struct AStruct *gyro,struct AStruct *gyro_bias);
 
-    void init(int accelRange,int gyroRange); 
+    void init(int accelRange, int gyroRange,int sample_size,struct AStruct *accel, struct AStruct *gyro,struct AStruct *accel_bias, struct AStruct *gyro_bias);
 
-    //data read functions
-    void get_acc(int Anum,struct AStruct *acc);
-    void get_gyro(int Gnum,struct GStruct *gyro);
-    void get_magnet(struct MStruct *mag); 
+    // data read functions
+    void get_acc(int Anum, struct AStruct *acc);
+    void get_gyro(int Gnum, struct AStruct *gyro);
+    void get_magnet(struct AStruct *mag);
 };
 
 #endif
